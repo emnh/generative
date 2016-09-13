@@ -43,7 +43,7 @@
 
 (app-dispatch
   {
-   :path [:graphics]
+   :path [:graphics :topaint]
    :type :assoc
    :data "circle"})
 
