@@ -2,7 +2,8 @@
   (:require
     [rum.core :as rum]
     [cljs.pprint :as pprint]
-    [generative.graphics :as graphics]))
+    [generative.graphics :as graphics]
+    [generative.three :as three]))
 
 (enable-console-print!)
 
@@ -15,11 +16,6 @@
   (atom
     {
      :text "Hello world!"}))
-
-
-'(if
-  (nil? (:page @app-state))
-  (swap! app-state assoc :page "pixi"))
 
 (defn app-dispatch
   [action]
@@ -39,13 +35,19 @@
   {
    :path [:page]
    :type :assoc-once
-   :data "pixi"})
+   :data "three"})
 
-(app-dispatch
-  {
-   :path [:graphics :topaint]
-   :type :assoc
-   :data "circle"})
+;(app-dispatch
+;  {
+;   :path [:page]
+;   :type :assoc-once
+;   :data "pixi"})
+
+;(app-dispatch
+;  {
+;   :path [:graphics :topaint]
+;   :type :assoc
+;   :data "circle"})
 
 (rum/defc
   label [text]
@@ -62,7 +64,8 @@
     [root
      [:div
       (show-app-state)
-      (graphics/show-graphics app-state app-dispatch)]]
+      (three/show-three app-state app-dispatch)]]
+      ;(graphics/show-graphics app-state app-dispatch)]]
     root))
 
 (defn main
