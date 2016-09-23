@@ -7,10 +7,10 @@
 ; compute settings
 (def decay 0.9)
 (def angle-divisor 10.0)
-(def branch-factor 0.5)
-(def initial-radius 0.05)
+(def branch-factor 1.0)
+(def initial-radius 0.1)
 (def initial-branch-count 40.0)
-(def max-branch-count 100000)
+(def max-branch-count 1000000)
 
 (deftype branch [x y radius angle depth parent])
 
@@ -19,7 +19,7 @@
   (let
     [new-x (infix x + radius * js/Math.sin(angle))
      new-y (infix y + radius * js/Math.cos(angle))
-     new-radius (infix radius * decay)
+     new-radius (infix radius * (decay - (js/Math.random() * 0.2)))
      new-depth (inc depth)
      mul (if (< new-depth 5.0) 1.0 1.0)
      new-angle (infix angle + ((js/Math.random() - 0.5) * 2.0 * js/Math.PI / angle-divisor) * mul)
@@ -30,12 +30,12 @@
   [active x y radius angle depth parent]
   (let
     [first (compute-next x y radius angle depth parent)
-     x (.-x first)
-     y (.-y first)
-     radius (.-radius first)
+     ;x (.-x first)
+     ;y (.-y first)
+     ;radius (.-radius first)
      angle (.-angle first)
-     depth (.-depth first)
-     parent (.-parent first)
+     ;depth (.-depth first)
+     ;parent (.-parent first)
      second
      (if
        (infix js/Math.random() < branch-factor)

@@ -40,8 +40,39 @@
      (println "updated three canvas")
      state)})
 
+(def vertex-shader "
+uniform float time;
+attribute vec3 parentPosition;
+
+float random(float co) {
+  return fract(sin(co*12.989) * 43758.545);
+}
+
+void main() {
+  //float factor = 0.2;
+  vec3 pos = position;
+
+  if (parentPosition.z != 1.0) {
+    float factor = distance(position.xy, parentPosition.xy);
+    float rnd = random(position.x + position.y) * 10.0;
+    float itime = time * 1.0;
+    float angle = atan(parentPosition.y - position.y, parentPosition.x - position.x);
+    angle = itime + angle;
+    pos.x = parentPosition.x + cos(angle) * factor;
+    pos.y = parentPosition.y + sin(angle) * factor;
+  }
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+}
+")
+
+(def fragment-shader "
+void main() {
+  gl_FragColor = vec4(vec3(1.0), 0.005);
+}
+")
+
 (defn setup-geo
-  []
+  [width height]
   (let
     [data (compute/compute)
      line-count (-> data .-length)
@@ -51,14 +82,34 @@
      geo (new js/THREE.BufferGeometry)
      position (new js/Float32Array (infix vertex-count * xyz-size))
      position-attr (new js/THREE.BufferAttribute position xyz-size)
-     ;material (new js/THREE.LineBasicMaterial #js {:vertexColors js/THREE.VertexColors})
-     material (new js/THREE.LineBasicMaterial #js {
-                                                   :vertexColors js/THREE.NoColors
-                                                   :transparent true})
+     parent-position (new js/Float32Array (infix vertex-count * xyz-size))
+     parent-position-attr (new js/THREE.BufferAttribute parent-position xyz-size)
+     uniforms #js {
+                   :time #js { :value 0.0}
+                   :resolution #js { :value (new js/THREE.Vector2 width height)}}
+     material (new js/THREE.ShaderMaterial #js {
+                                                :uniforms uniforms
+                                                :vertexShader vertex-shader
+                                                :fragmentShader fragment-shader
+                                                :transparent true})
+
      lines (new js/THREE.Line geo material)
-     width 15.0
-     height 15.0
-     random #(infix js/Math.random() * width - width / 2.0)]
+     lines-width 15.0
+     lines-height 15.0
+     ;opacity 0.01
+     random #(infix js/Math.random() * lines-width - lines-width / 2.0)
+     start-time (let
+                  [new-time (-> (new js/Date) .getTime)]
+                  (infix new-time / 1000.0))
+     get-time #(let
+                  [new-time (-> (new js/Date) .getTime)]
+                (infix new-time / 1000.0 - start-time))
+     update-fn
+     (fn []
+       (let [new-time (get-time)]
+         (-> uniforms .-time .-value (set! new-time))))]
+    (-> geo (.addAttribute "position" position-attr))
+    (-> geo (.addAttribute "parentPosition" parent-position-attr))
     (loop
       [i 0]
       (if (< i line-count)
@@ -70,10 +121,10 @@
             parent-branch (aget data parent)
             prev-x (.-x parent-branch)
             prev-y (.-y parent-branch)
-            scaled-x1 (infix prev-x * width - width / 2)
-            scaled-y1 (infix prev-y * height - height / 2)
-            scaled-x2 (infix x * width - width / 2)
-            scaled-y2 (infix y * height - height / 2)
+            scaled-x1 (infix prev-x * lines-width - lines-width / 2)
+            scaled-y1 (infix prev-y * lines-height - lines-height / 2)
+            scaled-x2 (infix x * lines-width - lines-width / 2)
+            scaled-y2 (infix y * lines-height - lines-height / 2)
             index-mul (infix xyz-size * line-vertices)]
           (aset position (infix i * index-mul + 0) scaled-x1)
           (aset position (infix i * index-mul + 1) scaled-y1)
@@ -81,11 +132,17 @@
           (aset position (infix i * index-mul + 3) scaled-x2)
           (aset position (infix i * index-mul + 4) scaled-y2)
           (aset position (infix i * index-mul + 5) 0)
+
+          (aset parent-position (infix i * index-mul + 0) scaled-x2)
+          (aset parent-position (infix i * index-mul + 1) scaled-y2)
+          (aset parent-position (infix i * index-mul + 2) 1)
+          (aset parent-position (infix i * index-mul + 3) scaled-x1)
+          (aset parent-position (infix i * index-mul + 4) scaled-y1)
+          (aset parent-position (infix i * index-mul + 5) 0)
           (recur (inc i)))
         nil))
-    (-> geo (.addAttribute "position" position-attr))
-    (-> material .-opacity (set! 0.1))
-    {:lines lines}))
+    {:lines lines
+     :update-fn update-fn}))
 
 (rum/defcs
   show-three <
@@ -133,12 +190,13 @@
             generate-graphics
             (fn []
               (let
-                [geo (setup-geo)
+                [geo (setup-geo width height)
                  lines (:lines geo)]
                 (doseq [child (-> parent .-children)]
                   (-> parent (.remove child)))
-                (-> parent (.add lines))))]
+                (-> parent (.add lines))
+                (:update-fn geo)))]
           (-> three-scene (.add light))
           (-> three-scene (.add parent))
-          (reset! (::generate-graphics state) generate-graphics))))
+          (reset! (::generate-graphics state) (generate-graphics)))))
     [:div.pixi-root]))
