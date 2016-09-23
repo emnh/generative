@@ -42,16 +42,27 @@
 
 (def vertex-shader "
 uniform float time;
-attribute vec3 parentPosition;
+//attribute vec3 parentPosition;
+attribute vec3 nextPosition;
+
+#define PI 3.1415926
 
 float random(float co) {
   return fract(sin(co*12.989) * 43758.545);
 }
 
+float triangleWave(float time) {
+  float m = 1.0;
+  float x = m - abs(mod(time, 2.0 * m) - m);
+  return x;
+}
+
 void main() {
   //float factor = 0.2;
-  vec3 pos = position;
 
+  vec3 pos = mix(position, nextPosition, triangleWave(time));
+
+  /*
   if (parentPosition.z != 1.0) {
     float factor = distance(position.xy, parentPosition.xy);
     float rnd = random(position.x + position.y) * 10.0;
@@ -61,6 +72,7 @@ void main() {
     pos.x = parentPosition.x + cos(angle) * factor;
     pos.y = parentPosition.y + sin(angle) * factor;
   }
+  */
   gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
 }
 ")
@@ -75,6 +87,7 @@ void main() {
   [width height]
   (let
     [data (compute/compute)
+     data2 (compute/compute)
      line-count (-> data .-length)
      vertex-count (infix line-count * 2)
      line-vertices 2
@@ -84,6 +97,8 @@ void main() {
      position-attr (new js/THREE.BufferAttribute position xyz-size)
      parent-position (new js/Float32Array (infix vertex-count * xyz-size))
      parent-position-attr (new js/THREE.BufferAttribute parent-position xyz-size)
+     next-position (new js/Float32Array (infix vertex-count * xyz-size))
+     next-position-attr (new js/THREE.BufferAttribute next-position xyz-size)
      uniforms #js {
                    :time #js { :value 0.0}
                    :resolution #js { :value (new js/THREE.Vector2 width height)}}
@@ -110,21 +125,33 @@ void main() {
          (-> uniforms .-time .-value (set! new-time))))]
     (-> geo (.addAttribute "position" position-attr))
     (-> geo (.addAttribute "parentPosition" parent-position-attr))
+    (-> geo (.addAttribute "nextPosition" next-position-attr))
     (loop
       [i 0]
       (if (< i line-count)
         (let
            [current-branch (aget data i)
+            next-branch (aget data2 i)
             x (.-x current-branch)
             y (.-y current-branch)
+            next-x (.-x next-branch)
+            next-y (.-y next-branch)
             parent (.-parent current-branch)
+            next-parent (.-parent next-branch)
             parent-branch (aget data parent)
-            prev-x (.-x parent-branch)
-            prev-y (.-y parent-branch)
-            scaled-x1 (infix prev-x * lines-width - lines-width / 2)
-            scaled-y1 (infix prev-y * lines-height - lines-height / 2)
+            next-parent-branch (aget data2 next-parent)
+            parent-x (.-x parent-branch)
+            parent-y (.-y parent-branch)
+            next-parent-x (.-x next-parent-branch)
+            next-parent-y (.-y next-parent-branch)
+            scaled-x1 (infix parent-x * lines-width - lines-width / 2)
+            scaled-y1 (infix parent-y * lines-height - lines-height / 2)
             scaled-x2 (infix x * lines-width - lines-width / 2)
             scaled-y2 (infix y * lines-height - lines-height / 2)
+            next-scaled-x1 (infix next-parent-x * lines-width - lines-width / 2)
+            next-scaled-y1 (infix next-parent-y * lines-height - lines-height / 2)
+            next-scaled-x2 (infix next-x * lines-width - lines-width / 2)
+            next-scaled-y2 (infix next-y * lines-height - lines-height / 2)
             index-mul (infix xyz-size * line-vertices)]
           (aset position (infix i * index-mul + 0) scaled-x1)
           (aset position (infix i * index-mul + 1) scaled-y1)
@@ -133,12 +160,19 @@ void main() {
           (aset position (infix i * index-mul + 4) scaled-y2)
           (aset position (infix i * index-mul + 5) 0)
 
-          (aset parent-position (infix i * index-mul + 0) scaled-x2)
-          (aset parent-position (infix i * index-mul + 1) scaled-y2)
-          (aset parent-position (infix i * index-mul + 2) 1)
-          (aset parent-position (infix i * index-mul + 3) scaled-x1)
-          (aset parent-position (infix i * index-mul + 4) scaled-y1)
-          (aset parent-position (infix i * index-mul + 5) 0)
+          (aset next-position (infix i * index-mul + 0) next-scaled-x1)
+          (aset next-position (infix i * index-mul + 1) next-scaled-y1)
+          (aset next-position (infix i * index-mul + 2) 0)
+          (aset next-position (infix i * index-mul + 3) next-scaled-x2)
+          (aset next-position (infix i * index-mul + 4) next-scaled-y2)
+          (aset next-position (infix i * index-mul + 5) 0)
+
+          ;(aset parent-position (infix i * index-mul + 0) scaled-x2)
+          ;(aset parent-position (infix i * index-mul + 1) scaled-y2)
+          ;(aset parent-position (infix i * index-mul + 2) 1)
+          ;(aset parent-position (infix i * index-mul + 3) scaled-x1)
+          ;(aset parent-position (infix i * index-mul + 4) scaled-y1)
+          ;(aset parent-position (infix i * index-mul + 5) 0)
           (recur (inc i)))
         nil))
     {:lines lines
