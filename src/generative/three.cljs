@@ -84,11 +84,9 @@ void main() {
 ")
 
 (defn setup-geo
-  [width height]
+  [width height data data2]
   (let
-    [data (compute/compute)
-     data2 (compute/compute)
-     line-count (-> data .-length)
+    [line-count (-> data .-length)
      vertex-count (infix line-count * 2)
      line-vertices 2
      xyz-size 3
@@ -112,17 +110,7 @@ void main() {
      lines-width 15.0
      lines-height 15.0
      ;opacity 0.01
-     random #(infix js/Math.random() * lines-width - lines-width / 2.0)
-     start-time (let
-                  [new-time (-> (new js/Date) .getTime)]
-                  (infix new-time / 1000.0))
-     get-time #(let
-                  [new-time (-> (new js/Date) .getTime)]
-                (infix new-time / 1000.0 - start-time))
-     update-fn
-     (fn []
-       (let [new-time (get-time)]
-         (-> uniforms .-time .-value (set! new-time))))]
+     random #(infix js/Math.random() * lines-width - lines-width / 2.0)]
     (-> geo (.addAttribute "position" position-attr))
     (-> geo (.addAttribute "parentPosition" parent-position-attr))
     (-> geo (.addAttribute "nextPosition" next-position-attr))
@@ -176,7 +164,53 @@ void main() {
           (recur (inc i)))
         nil))
     {:lines lines
-     :update-fn update-fn}))
+     :uniforms uniforms}))
+
+(defn generate-graphics
+  [width height parent]
+  (println "generate-graphics")
+  (let
+    [data (compute/compute compute/default-settings)
+     data2 (compute/compute compute/default-settings)
+     geo (setup-geo width height data data2)
+     uniforms (atom (:uniforms geo))
+     start-time (let
+                  [new-time (-> (new js/Date) .getTime)]
+                  (infix new-time / 1000.0))
+     get-time #(let
+                [new-time (-> (new js/Date) .getTime)]
+                (infix new-time / 1000.0 - start-time))
+     old-time (atom (get-time))
+     old-data (atom data)
+     new-data (atom data2)
+     interval 10.0
+     set-new-lines
+     (fn [lines]
+       (doseq [child (-> parent .-children)]
+         (-> parent (.remove child)))
+       (-> parent (.add lines)))
+     update-fn
+     (fn []
+       (let
+         [new-time (get-time)
+          time-diff (- new-time @old-time)]
+         (-> @uniforms .-time .-value (set! new-time))
+         (if (> time-diff interval)
+           (do
+             (println "generating new data at time" new-time)
+             (reset! old-time new-time)
+             (reset! old-data @new-data)
+             (let
+                [new-settings compute/default-settings
+                 ;new-settings (assoc new-settings :decay (infix 0.7 + js/Math.random() * 0.3))]
+                 new-settings (assoc new-settings :angle-divisor (infix js/Math.random() * 10.0))]
+                (reset! new-data (compute/compute new-settings)))
+             (let
+               [geo (setup-geo width height @old-data @new-data)]
+               (set-new-lines (:lines geo))
+               (reset! uniforms (:uniforms geo)))))))]
+    (set-new-lines (:lines geo))
+    update-fn))
 
 (rum/defcs
   show-three <
@@ -221,16 +255,8 @@ void main() {
         (let
            [light (new js/THREE.AmbientLight 0xFFFFFF 1.0)
             parent (new js/THREE.Object3D)
-            generate-graphics
-            (fn []
-              (let
-                [geo (setup-geo width height)
-                 lines (:lines geo)]
-                (doseq [child (-> parent .-children)]
-                  (-> parent (.remove child)))
-                (-> parent (.add lines))
-                (:update-fn geo)))]
+            update-fn (generate-graphics width height parent)]
           (-> three-scene (.add light))
           (-> three-scene (.add parent))
-          (reset! (::generate-graphics state) (generate-graphics)))))
+          (reset! (::generate-graphics state) update-fn))))
     [:div.pixi-root]))
