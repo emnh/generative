@@ -42,8 +42,10 @@
 
 (def vertex-shader "
 uniform float time;
-//attribute vec3 parentPosition;
+attribute vec3 parentPosition;
 attribute vec3 nextPosition;
+
+varying vec3 vColor;
 
 #define PI 3.1415926
 
@@ -58,28 +60,38 @@ float triangleWave(float time) {
 }
 
 void main() {
-  //float factor = 0.2;
+  float factor = 4.0;
+  float r = min(position.x, 1.0);
+  float g = random(position.x + position.y + parentPosition.x + parentPosition.y);
+  float b = min(position.y, 1.0);
+  vColor = vec3(r, g, b);
 
-  vec3 pos = mix(position, nextPosition, triangleWave(time));
+  float rotation = -time + random(position.x + position.y + parentPosition.x + parentPosition.y);
 
-  /*
-  if (parentPosition.z != 1.0) {
-    float factor = distance(position.xy, parentPosition.xy);
-    float rnd = random(position.x + position.y) * 10.0;
-    float itime = time * 1.0;
-    float angle = atan(parentPosition.y - position.y, parentPosition.x - position.x);
-    angle = itime + angle;
-    pos.x = parentPosition.x + cos(angle) * factor;
-    pos.y = parentPosition.y + sin(angle) * factor;
-  }
-  */
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+  mat4 rotationMat = mat4(cos(rotation), sin(rotation) * -1.0, 0.0, 0.0,
+                          sin(rotation), cos(rotation), 0.0, 0.0,
+                          0.0, 0.0, 1.0, 0.0,
+                          0.0, 0.0, 0.0, 1.0);
+
+  vec4 pos1 = vec4(position, 1.0);
+  vec4 pos2 = vec4(nextPosition, 1.0);
+  vec4 rotpos1 = pos1 * rotationMat;
+  //vec4 rotpos2 *= rotationMat;
+
+  vec4 pos = mix(pos1, rotpos1, (sin(time) + 1.0) / 2.0);
+  pos = mix(pos, pos2, (sin(time * 3.13) + 1.0) / 2.0);
+
+  gl_Position = projectionMatrix * modelViewMatrix * pos;
 }
 ")
 
 (def fragment-shader "
+
+varying vec3 vColor;
+
 void main() {
-  gl_FragColor = vec4(vec3(1.0), 0.005);
+  //gl_FragColor = vec4(vColor, 4.0 / 256.0);
+  gl_FragColor = vec4(vColor, 0.2);
 }
 ")
 
@@ -118,7 +130,10 @@ void main() {
       [i 0]
       (if (< i line-count)
         (let
-           [current-branch (aget data i)
+           [;rnd (js/Math.random)
+            ;lines-width (infix lines-width * rnd)
+            ;ines-height (infix lines-height * rnd)
+            current-branch (aget data i)
             next-branch (aget data2 i)
             x (.-x current-branch)
             y (.-y current-branch)
@@ -155,12 +170,12 @@ void main() {
           (aset next-position (infix i * index-mul + 4) next-scaled-y2)
           (aset next-position (infix i * index-mul + 5) 0)
 
-          ;(aset parent-position (infix i * index-mul + 0) scaled-x2)
-          ;(aset parent-position (infix i * index-mul + 1) scaled-y2)
-          ;(aset parent-position (infix i * index-mul + 2) 1)
-          ;(aset parent-position (infix i * index-mul + 3) scaled-x1)
-          ;(aset parent-position (infix i * index-mul + 4) scaled-y1)
-          ;(aset parent-position (infix i * index-mul + 5) 0)
+          (aset parent-position (infix i * index-mul + 0) scaled-x2)
+          (aset parent-position (infix i * index-mul + 1) scaled-y2)
+          (aset parent-position (infix i * index-mul + 2) 1)
+          (aset parent-position (infix i * index-mul + 3) scaled-x1)
+          (aset parent-position (infix i * index-mul + 4) scaled-y1)
+          (aset parent-position (infix i * index-mul + 5) 0)
           (recur (inc i)))
         nil))
     {:lines lines
@@ -183,7 +198,7 @@ void main() {
      old-time (atom (get-time))
      old-data (atom data)
      new-data (atom data2)
-     interval 10.0
+     interval 100.0
      set-new-lines
      (fn [lines]
        (doseq [child (-> parent .-children)]
@@ -201,9 +216,9 @@ void main() {
              (reset! old-time new-time)
              (reset! old-data @new-data)
              (let
-                [new-settings compute/default-settings
+                [new-settings compute/default-settings]
                  ;new-settings (assoc new-settings :decay (infix 0.7 + js/Math.random() * 0.3))]
-                 new-settings (assoc new-settings :angle-divisor (infix js/Math.random() * 10.0))]
+                 ;new-settings (assoc new-settings :angle-divisor (infix js/Math.random() * 10.0))]
                 (reset! new-data (compute/compute new-settings)))
              (let
                [geo (setup-geo width height @old-data @new-data)]

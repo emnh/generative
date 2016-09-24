@@ -19,7 +19,7 @@
      :branch-factor 1.0
      :initial-radius 0.1
      :initial-branch-count 40.0
-     :max-branch-count 1000000}))
+     :max-branch-count 10000}))
 
 (deftype Branch [x y radius angle depth parent])
 
