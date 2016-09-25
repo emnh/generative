@@ -60,10 +60,12 @@ float triangleWave(float time) {
 }
 
 void main() {
-  float factor = 4.0;
-  float r = min(position.x, 1.0);
+  float factor = 1.0;
+  float at = atan(position.y, position.x);
+  float r = min(position.x / factor, 1.0);
   float g = random(position.x + position.y + parentPosition.x + parentPosition.y);
-  float b = min(position.y, 1.0);
+  float b = min(position.y / factor, 1.0);
+  //g = fract(g * time * 10.0);
   vColor = vec3(r, g, b);
 
   float rotation = -time + random(position.x + position.y + parentPosition.x + parentPosition.y);
@@ -73,13 +75,15 @@ void main() {
                           0.0, 0.0, 1.0, 0.0,
                           0.0, 0.0, 0.0, 1.0);
 
-  vec4 pos1 = vec4(position, 1.0);
-  vec4 pos2 = vec4(nextPosition, 1.0);
+  vec4 pos1 = vec4(position.xy, 0.0, 1.0);
+  vec4 pos2 = vec4(nextPosition.xy, 0.0, 1.0);
   vec4 rotpos1 = pos1 * rotationMat;
   //vec4 rotpos2 *= rotationMat;
 
   vec4 pos = mix(pos1, rotpos1, (sin(time) + 1.0) / 2.0);
-  pos = mix(pos, pos2, (sin(time * 3.13) + 1.0) / 2.0);
+  //pos = rotpos1;
+  pos = mix(pos, pos2, (sin(time * 3.1337) + 1.0) / 2.0);
+  //pos = pos1;
 
   gl_Position = projectionMatrix * modelViewMatrix * pos;
 }
@@ -87,11 +91,16 @@ void main() {
 
 (def fragment-shader "
 
+uniform vec2 resolution;
+uniform float time;
+
 varying vec3 vColor;
 
 void main() {
   //gl_FragColor = vec4(vColor, 4.0 / 256.0);
-  gl_FragColor = vec4(vColor, 0.2);
+  vec3 color = vColor;
+  vec2 xy = gl_FragCoord.xy / resolution.xy - 0.5;
+  gl_FragColor = vec4(color, 0.2);
 }
 ")
 
@@ -99,8 +108,8 @@ void main() {
   [width height data data2]
   (let
     [line-count (-> data .-length)
-     vertex-count (infix line-count * 2)
      line-vertices 2
+     vertex-count (infix line-count * line-vertices)
      xyz-size 3
      geo (new js/THREE.BufferGeometry)
      position (new js/Float32Array (infix vertex-count * xyz-size))
@@ -240,8 +249,8 @@ void main() {
   (let
     [graphics-cursor (rum/cursor-in app-state [:three])
      graphics-state (rum/react graphics-cursor)
-     width 800
-     height 600
+     width 1600
+     height 800
      old-three-renderer (get-in graphics-state [:ui-cache :three-renderer])
      three-renderer (or old-three-renderer (new js/THREE.WebGLRenderer))
      three-scene (new js/THREE.Scene)
