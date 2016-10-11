@@ -42,6 +42,7 @@
 
 (def vertex-shader "
 uniform float time;
+attribute float lineIndex;
 attribute vec3 parentPosition;
 attribute vec3 nextPosition;
 
@@ -67,9 +68,11 @@ void main() {
   float b = min(position.y / factor, 1.0);
   //g = fract(g * time * 10.0);
 
-  vColor = vec3(r, g, b);
+  //vColor = vec3(r, g, b);
+  vColor = vec3(r, g, b) + 0.2 * sin(time);
 
   float rotation = -time + random(position.x + position.y + parentPosition.x + parentPosition.y);
+  //float rotation = -time + random(lineIndex);
 
   mat4 rotationMat = mat4(cos(rotation), sin(rotation) * -1.0, 0.0, 0.0,
                           sin(rotation), cos(rotation), 0.0, 0.0,
@@ -129,6 +132,8 @@ void main() {
      parent-position-attr (new js/THREE.BufferAttribute parent-position xyz-size)
      next-position (new js/Float32Array (infix vertex-count * xyz-size))
      next-position-attr (new js/THREE.BufferAttribute next-position xyz-size)
+     line-index (new js/Float32Array vertex-count)
+     line-index-attr (new js/THREE.BufferAttribute position 1)
      uniforms #js {
                    :time #js { :value 0.0}
                    :resolution #js { :value (new js/THREE.Vector2 width height)}}
@@ -137,9 +142,7 @@ void main() {
                                                 :vertexShader vertex-shader
                                                 :fragmentShader fragment-shader
                                                 :transparent true
-                                                :side js/THREE.DoubleSide
-                                                :blending js/THREE.AdditiveAlphaBlending})
-
+                                                :side js/THREE.DoubleSide})
      use-lines true
      lines
      (if use-lines
@@ -158,6 +161,7 @@ void main() {
     (-> geo (.addAttribute "position" position-attr))
     (-> geo (.addAttribute "parentPosition" parent-position-attr))
     (-> geo (.addAttribute "nextPosition" next-position-attr))
+    (-> geo (.addAttribute "lineIndex" line-index-attr))
     (loop
       [i 0]
       (if (< i line-count)
@@ -197,6 +201,10 @@ void main() {
             next-scaled-z2 (infix next-z * lines-depth - lines-depth / 2)
             index-mul (infix xyz-size * line-vertices)
             s 0.01]
+          (aset line-index (infix i * line-vertices + 0) (infix i / line-count))
+          (aset line-index (infix i * line-vertices + 1) (infix i / line-count))
+          (aset line-index (infix i * line-vertices + 2) (infix i / line-count))
+
           (aset position (infix i * index-mul + 0) scaled-x1)
           (aset position (infix i * index-mul + 1) scaled-y1)
           (aset position (infix i * index-mul + 2) scaled-z1)
