@@ -1,5 +1,5 @@
 (defproject generative "0.1.0-SNAPSHOT"
-  :description "FIXME: write this!"
+  :description "GLSL Generative Graphics"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
@@ -49,7 +49,8 @@
                 :source-paths ["src"]
                 :compiler {:output-to "resources/public/js/compiled/generative.js"
                            :main generative.core
-                           :optimizations :advanced
+                           ;:optimizations :advanced
+                           :optimizations :none
                            :pretty-print false}}]}
 
   :figwheel {;; :http-server-root "public" ;; default and assumes "resources"

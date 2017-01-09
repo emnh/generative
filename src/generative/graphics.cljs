@@ -1,13 +1,15 @@
 (ns generative.graphics
   (:require
     [rum.core :as rum]
-    [cljs.pprint :as pprint])
+    [cljs.pprint :as pprint]
+    [generative.compute :as gcompute])
   (:require-macros
     [infix.macros :refer [infix]]))
 
 (enable-console-print!)
 
-(def inv-initial-radius (infix 1.0 / initial-radius))
+(def inv-initial-radius (infix 1.0 / (.initial-radius gcompute/default-settings)))
+
 (def line-alpha-multiplier 1.5)
 
 (defn rgb
@@ -21,7 +23,7 @@
 (defn render-graphics
   [stage width height]
   (let
-    [data (compute)
+    [data (gcompute/compute gcompute/default-settings)
      graphics (new js/PIXI.Graphics)]
     ;(pprint/pprint ["data" data])
     ;(.log js/console "data" data)

@@ -13,11 +13,14 @@
      three-scene @(::three-scene state)
      three-camera @(::three-camera state)
      generate-graphics @(::generate-graphics state)
-     mounted? (::mounted? state)]
+     mounted? (::mounted? state)
+     three-view @(::three-view state)
+     capturer @(::capturer state)]
     (if mounted?
       (do
         (generate-graphics)
         (-> three-renderer (.render three-scene three-camera))
+        (-> capturer (.capture three-view))
         (js/requestAnimationFrame #(animate state))))))
 
 (def attach-three-canvas
@@ -298,12 +301,13 @@ void main() {
   (rum/local nil ::three-scene)
   (rum/local nil ::three-camera)
   (rum/local nil ::generate-graphics)
+  (rum/local nil ::capturer)
   (rum/local false ::mounted?)
   [state app-state app-dispatch]
   (let
     [graphics-cursor (rum/cursor-in app-state [:three])
      graphics-state (rum/react graphics-cursor)
-     width 1600
+     width 800
      height 800
      old-three-renderer (get-in graphics-state [:ui-cache :three-renderer])
      three-renderer (or old-three-renderer (new js/THREE.WebGLRenderer))
@@ -314,7 +318,22 @@ void main() {
      far 10000
      origin (new js/THREE.Vector3 0 0 0)
      three-camera (new js/THREE.PerspectiveCamera view-angle aspect near far)
-     should-update (or (nil? old-three-renderer) (nil? @(::three-view state)))]
+     should-update (or (nil? old-three-renderer) (nil? @(::three-view state)))
+     capturer
+     (new
+       js/CCapture
+       #js
+       {
+        :format "ffmpegserver"
+        :framerate 60
+        :verbose true
+        :name "generative"
+        :extension ".mp4"
+        :codec "prores-ks"})
+     saveHandler
+     (fn [evt]
+       (-> capturer .stop)
+       (-> capturer .save))]
     (if should-update
       (do
         (println "should-update was true")
@@ -328,6 +347,11 @@ void main() {
         (reset! (::three-view state) (.-domElement three-renderer))
         (reset! (::three-camera state) three-camera)
         (reset! (::three-scene state) three-scene)
+        (reset! (::capturer state) capturer)
+        (->
+          (js/$ "#saveButton")
+          (.click saveHandler))
+        (-> capturer .start)
         (-> three-camera .-position .-z (set! -20.0))
         (-> three-camera (.lookAt origin))
         (let
