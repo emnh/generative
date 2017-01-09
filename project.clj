@@ -37,7 +37,7 @@
                 :compiler {:main generative.core
                            :asset-path "js/compiled/out"
                            :output-to "resources/public/js/compiled/generative.js"
-                           :output-dir "resources/public/js/compiled/out"
+                           :output-dir "resources/public/js/compiled/out.fig"
                            :source-map-timestamp true
                            ;; To console.log CLJS data-structures make sure you enable devtools in Chrome
                            ;; https://github.com/binaryage/cljs-devtools
@@ -48,8 +48,10 @@
                {:id "min"
                 :source-paths ["src"]
                 :compiler {:output-to "resources/public/js/compiled/generative.js"
+                           :output-dir "resources/public/js/compiled/out"
                            :main generative.core
-                           :optimizations :advanced
+                           :asset-path "js/compiled/out"
+                           :optimizations :none
                            :pretty-print false}}]}
 
   :figwheel {;; :http-server-root "public" ;; default and assumes "resources"

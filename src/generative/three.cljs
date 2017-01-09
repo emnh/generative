@@ -260,7 +260,7 @@ void main() {
      old-time (atom (get-time))
      old-data (atom data)
      new-data (atom data2)
-     interval 100.0
+     interval 3600.0
      set-new-lines
      (fn [lines mesh]
        (doseq [child (-> parent .-children)]
@@ -328,6 +328,7 @@ void main() {
         (reset! (::three-view state) (.-domElement three-renderer))
         (reset! (::three-camera state) three-camera)
         (reset! (::three-scene state) three-scene)
+        (-> (js/$ "#video") .hide)
         (-> three-camera .-position .-z (set! -20.0))
         (-> three-camera (.lookAt origin))
         (let

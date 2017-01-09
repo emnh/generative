@@ -63,7 +63,7 @@
   (let
     [root
      [:div
-      (show-app-state)
+      ;(show-app-state)
       (three/show-three app-state app-dispatch)]]
       ;(graphics/show-graphics app-state app-dispatch)]]
     root))
